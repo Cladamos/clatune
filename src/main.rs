@@ -64,40 +64,66 @@ impl App {
 
 impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let title = Line::from(" Clatune ".bold());
-        let instructions = Line::from(vec![" Quit ".into(), "<Q> ".blue().bold()]);
-        let main_block = Block::bordered()
-            .title(title.centered())
-            .title_bottom(instructions.centered())
-            .border_set(border::ROUNDED);
-        main_block.render(area, buf);
-
-        fn centered_rect(width: u16, height: u16, r: Rect) -> Rect {
-            let padding_vertical = r.height.saturating_sub(height) / 2;
-            let padding_horizontal = r.width.saturating_sub(width) / 2;
+        struct CenterOpts {
+            width: u16,
+            height: u16,
+            margin: u16,
+        }
+        fn centered_rect(opts: CenterOpts, r: Rect) -> Rect {
+            let padding_vertical = r.height.saturating_sub(opts.height) / 2;
+            let padding_horizontal = r.width.saturating_sub(opts.width) / 2;
 
             Rect {
                 x: r.x + padding_horizontal,
                 y: r.y + padding_vertical,
-                width: width.min(r.width),
-                height: height.min(r.height),
+                width: opts.width.min(r.width),
+                height: opts.height.min(r.height),
             }
             .inner(Margin {
-                horizontal: 2,
+                horizontal: opts.margin,
                 vertical: 0,
             })
         }
+        let instructions = Line::from(vec![" Quit ".into(), "<Q, Ctrl+C> ".blue().bold()]);
+        let main_block = Block::default().title_bottom(instructions.centered());
+        main_block.render(area, buf);
 
-        let tuner_area = centered_rect(70, 5, area);
+        let tuner_area = centered_rect(
+            CenterOpts {
+                width: 71,
+                height: 5,
+                margin: 0,
+            },
+            area,
+        );
         let tuner_layout =
             Layout::vertical([Constraint::Min(1), Constraint::Min(3), Constraint::Min(1)])
                 .split(tuner_area);
         let up_arrow = Paragraph::new("▲").alignment(Alignment::Center);
         let down_arrow = Paragraph::new("▼").alignment(Alignment::Center);
-        let tuner_block = Block::bordered().border_set(border::ROUNDED);
+        let tuner_bar = Block::bordered().border_set(border::ROUNDED);
+
+        let tuner_bar_area = centered_rect(
+            CenterOpts {
+                width: 71,
+                height: 1,
+                margin: 1,
+            },
+            tuner_layout[1],
+        );
+
+        // We have 69 character long bar LMAO so
+        // 0 margin means it's most left
+        // 34 left margin means it's centered
+        // 68 left margin means it's most right
+        // First constraint is the left margin, second is the bar itself
+        let tuner_bar_layout = Layout::horizontal([Constraint::Length(34), Constraint::Length(1)])
+            .split(tuner_bar_area);
+        let tune_indicator = Paragraph::new("█").alignment(Alignment::Left);
 
         down_arrow.render(tuner_layout[0], buf);
-        tuner_block.render(tuner_layout[1], buf);
+        tuner_bar.render(tuner_layout[1], buf);
+        tune_indicator.render(tuner_bar_layout[1], buf);
         up_arrow.render(tuner_layout[2], buf);
     }
 }
