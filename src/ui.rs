@@ -115,7 +115,7 @@ impl Widget for &App {
             .fg(color_according_to_cent)
             .alignment(Alignment::Center);
         let indicator_margin: u16 = if cent < 0 {
-            (cent * -34 / 100) as u16
+            34 - (cent * -34 / 100) as u16
         } else {
             34 + (cent * 34 / 100) as u16
         };
