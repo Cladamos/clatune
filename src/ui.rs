@@ -41,9 +41,12 @@ impl Widget for &App {
             Constraint::Max(2),
             Constraint::Max(3),
             Constraint::Max(1),
-            Constraint::Max(3),
+            Constraint::Length(1),
+            Constraint::Max(1),
         ])
+        .flex(Flex::Center)
         .split(tuner_area);
+
         let pitches_layout = Layout::horizontal([
             Constraint::Length(6),
             Constraint::Length(6),
@@ -58,7 +61,6 @@ impl Widget for &App {
                 Constraint::Length(4),
                 Constraint::Length(1),
             ])
-            .flex(Flex::Center)
             .split(pitches_layout[i]);
 
             let pitch_details = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
@@ -97,12 +99,24 @@ impl Widget for &App {
         // 34 left margin means it's centered
         // 68 left margin means it's most right
         // First constraint is the left margin, second is the bar itself
-        let tuner_bar_layout = Layout::horizontal([Constraint::Length(34), Constraint::Length(1)])
-            .split(tuner_bar_area);
+        let cent = self.tuner_data.cent;
+        let cent_paragraph = Paragraph::new(format!("{} cents", cent))
+            .fg(Color::Green)
+            .alignment(Alignment::Center);
+        let indicator_margin: u16 = if cent < 0 {
+            (cent * -34 / 100) as u16
+        } else {
+            34 + (cent * 34 / 100) as u16
+        };
+
+        let tuner_bar_layout =
+            Layout::horizontal([Constraint::Length(indicator_margin), Constraint::Length(1)])
+                .split(tuner_bar_area);
         let tune_indicator = Paragraph::new("█").alignment(Alignment::Left);
 
         tuner_bar.render(tuner_layout[1], buf);
         tune_indicator.render(tuner_bar_layout[1], buf);
         up_arrow.render(tuner_layout[2], buf);
+        cent_paragraph.render(tuner_layout[4], buf);
     }
 }
