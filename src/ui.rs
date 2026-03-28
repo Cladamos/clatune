@@ -54,7 +54,19 @@ impl Widget for &App {
         ])
         .flex(Flex::SpaceBetween)
         .split(tuner_layout[0]);
+        let color_according_to_cent = if self.tuner_data.cent.abs() > 50 {
+            Color::Red
+        } else if self.tuner_data.cent.abs() > 25 {
+            Color::Yellow
+        } else {
+            Color::Green
+        };
         for i in 0..3 {
+            let color = if i == 1 {
+                color_according_to_cent
+            } else {
+                Color::Gray
+            };
             let pitch_data = &self.tuner_data.pitches[i];
             let pitch_layout = Layout::horizontal([
                 Constraint::Length(1),
@@ -66,7 +78,6 @@ impl Widget for &App {
             let pitch_details = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
                 .split(pitch_layout[2]);
 
-            let color = if i == 1 { Color::Green } else { Color::Gray };
             let note = BigText::builder()
                 .pixel_size(PixelSize::Octant)
                 .lines(vec![pitch_data.note.clone().fg(color).into()])
@@ -100,8 +111,8 @@ impl Widget for &App {
         // 68 left margin means it's most right
         // First constraint is the left margin, second is the bar itself
         let cent = self.tuner_data.cent;
-        let cent_paragraph = Paragraph::new(format!("{} cents", cent))
-            .fg(Color::Green)
+        let cent_paragraph = Paragraph::new(format!("{:+} cents", cent))
+            .fg(color_according_to_cent)
             .alignment(Alignment::Center);
         let indicator_margin: u16 = if cent < 0 {
             (cent * -34 / 100) as u16
