@@ -1,6 +1,8 @@
+use derive_setters::Setters;
 use ratatui::prelude::*;
 use ratatui::symbols::border;
-use ratatui::widgets::{Block, Widget};
+
+use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListState, Widget};
 use ratatui::{layout::Flex, widgets::Paragraph};
 use tui_big_text::{BigText, PixelSize};
 
@@ -125,9 +127,81 @@ impl Widget for &App {
                 .split(tuner_bar_area);
         let tune_indicator = Paragraph::new("█").alignment(Alignment::Left);
 
+        let instructions = Line::from(vec![
+            "[i -> Input Devices] ".fg(Color::DarkGray),
+            "[q, ctrl+c -> Quit] ".fg(Color::DarkGray),
+        ]);
+        let instruction_block = Block::default()
+            .title_bottom(instructions)
+            .title_alignment(Alignment::Center);
+
         tuner_bar.render(tuner_layout[1], buf);
         tune_indicator.render(tuner_bar_layout[1], buf);
         up_arrow.render(tuner_layout[2], buf);
         cent_paragraph.render(tuner_layout[4], buf);
+        instruction_block.render(area, buf);
+
+        let popup_area = centered_rect(
+            CenterOpts {
+                width: area.width / 2,
+                height: area.height / 3,
+                margin: 0,
+            },
+            area,
+        );
+
+        let popup_instracttions = Line::from(vec![
+            "[↑/k -> Up] ".fg(Color::Blue),
+            "[↓/j -> Down] ".fg(Color::Blue),
+            "[Enter -> Select]".fg(Color::Blue),
+        ]);
+
+        let mut popup_list_state = ListState::default();
+        popup_list_state.select(Some(self.list_selected_index));
+
+        let mut popup = Popup::default()
+            .content(self.devices.clone())
+            .title("Input Devices")
+            .bottom_title(popup_instracttions)
+            .title_style(Style::new().blue().bold())
+            .border_style(Style::new().blue())
+            .list_state(popup_list_state);
+        if self.is_popup_open {
+            popup.render(popup_area, buf);
+        }
+    }
+}
+
+#[derive(Debug, Default, Setters)]
+struct Popup<'a> {
+    #[setters(into)]
+    title: Line<'a>,
+    #[setters(into)]
+    bottom_title: Line<'a>,
+    content: Vec<String>,
+    border_style: Style,
+    title_style: Style,
+    list_state: ListState,
+}
+
+impl Widget for &mut Popup<'_> {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        Clear.render(area, buf);
+        let block = Block::new()
+            .title(self.title.clone())
+            .title_bottom(self.bottom_title.clone())
+            .title_alignment(Alignment::Center)
+            .title_style(self.title_style)
+            .borders(Borders::ALL)
+            .border_style(self.border_style)
+            .border_type(BorderType::Rounded);
+
+        let list_items = self.content.iter().map(|s| ListItem::new(s.clone()));
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(Style::new().reversed())
+            .highlight_symbol(">> ")
+            .repeat_highlight_symbol(true);
+        StatefulWidget::render(list, area, buf, &mut self.list_state);
     }
 }

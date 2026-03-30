@@ -1,4 +1,4 @@
-use crate::audio::start_stream;
+use crate::audio::{get_devices, start_stream};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{DefaultTerminal, prelude::*};
 use std::{io, sync::mpsc, time::Duration};
@@ -8,6 +8,10 @@ pub struct App {
     exit: bool,
     _audio_stream: Option<cpal::Stream>,
     pub tuner_data: TunerData,
+    pub is_popup_open: bool,
+    pub devices: Vec<String>,
+    // pub selected_device: usize,
+    pub list_selected_index: usize,
 }
 
 #[derive(Debug, Default)]
@@ -29,6 +33,10 @@ impl App {
         let (tx, rx) = mpsc::channel::<TunerData>();
         let stream = start_stream(tx);
         self._audio_stream = Some(stream);
+
+        if self.is_popup_open || self.devices.is_empty() {
+            self.devices = get_devices();
+        }
 
         while !self.exit {
             while let Ok(tuner_data) = rx.try_recv() {
@@ -66,6 +74,21 @@ impl App {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
+            KeyCode::Char('i') => self.is_popup_open = !self.is_popup_open,
+            _ if self.is_popup_open => match key_event.code {
+                KeyCode::Up | KeyCode::Char('k') => {
+                    if self.list_selected_index != 0 {
+                        self.list_selected_index = self.list_selected_index - 1;
+                    }
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    if self.devices.len() - 1 != self.list_selected_index {
+                        self.list_selected_index = self.list_selected_index + 1;
+                    }
+                }
+                KeyCode::Esc => self.is_popup_open = false,
+                _ => {}
+            },
             _ => {}
         }
     }

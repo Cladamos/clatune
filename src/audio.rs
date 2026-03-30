@@ -6,6 +6,15 @@ use std::sync::mpsc::Sender;
 
 use crate::app::{AppNote, TunerData};
 
+pub fn get_devices() -> Vec<String> {
+    let host = cpal::default_host();
+    host.devices()
+        .unwrap()
+        .filter(|device| device.supports_input())
+        .map(|device| device.description().unwrap().name().to_string())
+        .collect()
+}
+
 pub fn start_stream(tx: Sender<TunerData>) -> cpal::Stream {
     let host = cpal::default_host();
     let device = host
