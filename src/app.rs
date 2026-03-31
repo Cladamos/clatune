@@ -14,13 +14,13 @@ pub struct App {
     pub list_selected_index: usize,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct AppNote {
     pub note: String,
     pub octave: i32,
     pub is_sharp: bool,
 }
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TunerData {
     pub pitches: [AppNote; 3],
     pub cent: i32,
