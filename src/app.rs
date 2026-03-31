@@ -32,7 +32,6 @@ pub struct TunerData {
 }
 
 impl App {
-    /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
         if self.is_popup_open || self.devices.is_empty() {
@@ -109,6 +108,7 @@ impl App {
                     self.selected_device = self.devices[self.list_selected_index].clone();
                     self.disconnect_audio();
                     self.connect_audio();
+                    self.is_popup_open = false;
                 }
                 _ => {}
             },

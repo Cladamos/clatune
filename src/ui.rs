@@ -109,9 +109,9 @@ impl Widget for &Tuner {
         ])
         .flex(Flex::SpaceBetween)
         .split(tuner_layout[0]);
-        let color_according_to_cent = if self.data.cent.abs() > 50 {
+        let color_according_to_cent = if self.data.cent.abs() > 30 {
             Color::Red
-        } else if self.data.cent.abs() > 25 {
+        } else if self.data.cent.abs() > 10 {
             Color::Yellow
         } else {
             Color::Green
@@ -149,7 +149,9 @@ impl Widget for &Tuner {
         }
 
         // let down_arrow = Paragraph::new("▼").alignment(Alignment::Center);
-        let tune_indicator = Paragraph::new("█").alignment(Alignment::Left);
+        let tune_indicator = Paragraph::new("█")
+            .style(Style::new().fg(color_according_to_cent))
+            .alignment(Alignment::Left);
         let up_arrow = Paragraph::new("▲").alignment(Alignment::Center);
 
         let tuner_bar = Block::bordered().border_set(border::ROUNDED);

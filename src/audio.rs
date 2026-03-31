@@ -95,6 +95,10 @@ fn get_tuner_data(frequency: f32) -> TunerData {
 
     let input_step = Hz(frequency).to_step().0;
     let nearest_step = step_from_letter_octave(note, octave);
+
+    // I guess in this crate stesp are semitones
+    // When I am trying calculate with steps it showed 2x more than it should
+    // In normal 1 step = 2 semitones = 200 cents
     let cent_diff = ((input_step - nearest_step) * 100.0).round() as i32;
 
     let index = NOTES
