@@ -6,19 +6,30 @@ use std::sync::mpsc::Sender;
 
 use crate::app::{AppNote, TunerData};
 
-pub fn get_devices() -> Vec<String> {
+pub fn get_devices() -> (Vec<String>, String) {
     let host = cpal::default_host();
-    host.devices()
+    let devices = host
+        .devices()
         .unwrap()
         .filter(|device| device.supports_input())
         .map(|device| device.description().unwrap().name().to_string())
-        .collect()
+        .collect();
+    let default_device = host
+        .default_input_device()
+        .unwrap()
+        .description()
+        .unwrap()
+        .name()
+        .to_string();
+    (devices, default_device)
 }
 
-pub fn start_stream(tx: Sender<TunerData>) -> cpal::Stream {
+pub fn start_stream(tx: Sender<TunerData>, device_name: String) -> cpal::Stream {
     let host = cpal::default_host();
     let device = host
-        .default_input_device()
+        .devices()
+        .unwrap()
+        .find(|device| device.description().unwrap().name() == device_name)
         .expect("No default input device found");
     let mut supported_configs_range = device
         .supported_input_configs()

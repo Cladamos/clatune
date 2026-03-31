@@ -1,16 +1,21 @@
 use crate::audio::{get_devices, start_stream};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{DefaultTerminal, prelude::*};
-use std::{io, sync::mpsc, time::Duration};
+use std::{
+    io,
+    sync::mpsc::{self},
+    time::Duration,
+};
 
 #[derive(Default)]
 pub struct App {
     exit: bool,
-    _audio_stream: Option<cpal::Stream>,
+    audio_stream: Option<cpal::Stream>,
+    audio_receiver: Option<mpsc::Receiver<TunerData>>,
     pub tuner_data: TunerData,
     pub is_popup_open: bool,
     pub devices: Vec<String>,
-    // pub selected_device: usize,
+    pub selected_device: String,
     pub list_selected_index: usize,
 }
 
@@ -30,16 +35,17 @@ impl App {
     /// runs the application's main loop until the user quits
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
-        let (tx, rx) = mpsc::channel::<TunerData>();
-        let stream = start_stream(tx);
-        self._audio_stream = Some(stream);
-
         if self.is_popup_open || self.devices.is_empty() {
-            self.devices = get_devices();
+            let (devices, default_device) = get_devices();
+            self.devices = devices;
+            if self.selected_device.is_empty() {
+                self.selected_device = default_device;
+            }
         }
+        self.connect_audio();
 
         while !self.exit {
-            while let Ok(tuner_data) = rx.try_recv() {
+            while let Ok(tuner_data) = self.audio_receiver.as_ref().unwrap().try_recv() {
                 self.tuner_data = tuner_data;
             }
 
@@ -49,6 +55,18 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    fn connect_audio(&mut self) {
+        let (tx, rx) = mpsc::channel::<TunerData>();
+        let stream = start_stream(tx, self.selected_device.clone());
+        self.audio_stream = Some(stream);
+        self.audio_receiver = Some(rx);
+    }
+
+    fn disconnect_audio(&mut self) {
+        self.audio_stream = None;
+        self.audio_receiver = None;
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -87,6 +105,11 @@ impl App {
                     }
                 }
                 KeyCode::Esc => self.is_popup_open = false,
+                KeyCode::Enter => {
+                    self.selected_device = self.devices[self.list_selected_index].clone();
+                    self.disconnect_audio();
+                    self.connect_audio();
+                }
                 _ => {}
             },
             _ => {}

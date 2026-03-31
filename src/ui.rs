@@ -69,7 +69,9 @@ impl Widget for &App {
             .bottom_title(popup_instracttions)
             .title_style(Style::new().blue().bold())
             .border_style(Style::new().blue())
-            .list_state(popup_list_state);
+            .list_state(popup_list_state)
+            .selected_device(self.selected_device.clone());
+
         if self.is_popup_open {
             popup.render(popup_area, buf);
         }
@@ -195,6 +197,7 @@ struct Popup<'a> {
     border_style: Style,
     title_style: Style,
     list_state: ListState,
+    selected_device: String,
 }
 
 impl Widget for &mut Popup<'_> {
@@ -209,10 +212,17 @@ impl Widget for &mut Popup<'_> {
             .border_style(self.border_style)
             .border_type(BorderType::Rounded);
 
-        let list_items = self.content.iter().map(|s| ListItem::new(s.clone()));
+        let list_items = self.content.iter().map(|s| {
+            let item = ListItem::new(s.clone());
+            let item_name = s.clone();
+            if item_name == self.selected_device {
+                item.style(Style::new().fg(Color::White)).reversed()
+            } else {
+                item.style(Style::new().fg(Color::White))
+            }
+        });
         let list = List::new(list_items)
             .block(block)
-            .highlight_style(Style::new().reversed())
             .highlight_symbol(">> ")
             .repeat_highlight_symbol(true);
         StatefulWidget::render(list, area, buf, &mut self.list_state);
