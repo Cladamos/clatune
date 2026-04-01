@@ -4,7 +4,7 @@ use ratatui::{DefaultTerminal, prelude::*};
 use std::{
     io,
     sync::mpsc::{self},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 #[derive(Default)]
@@ -12,7 +12,14 @@ pub struct App {
     exit: bool,
     audio_stream: Option<cpal::Stream>,
     audio_receiver: Option<mpsc::Receiver<TunerData>>,
+
+    last_tick: Option<Instant>,
+    is_referance_pitch_edit_on: bool,
+    pub referance_pitch: u16,
+    pub referance_pitch_blink_state: bool,
+
     pub tuner_data: TunerData,
+
     pub is_popup_open: bool,
     pub devices: Vec<String>,
     pub selected_device: String,
@@ -34,13 +41,11 @@ pub struct TunerData {
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
-        if self.is_popup_open || self.devices.is_empty() {
-            let (devices, default_device) = get_devices();
-            self.devices = devices;
-            if self.selected_device.is_empty() {
-                self.selected_device = default_device;
-            }
-        }
+        self.referance_pitch = 440;
+        self.last_tick = Some(Instant::now());
+        let (devices, default_device) = get_devices();
+        self.devices = devices;
+        self.selected_device = default_device;
         self.connect_audio();
 
         while !self.exit {
@@ -52,13 +57,16 @@ impl App {
             if event::poll(tick_rate)? {
                 self.handle_events()?;
             }
+            if self.is_referance_pitch_edit_on {
+                self.blink_on_tick();
+            }
         }
         Ok(())
     }
 
     fn connect_audio(&mut self) {
         let (tx, rx) = mpsc::channel::<TunerData>();
-        let stream = start_stream(tx, self.selected_device.clone());
+        let stream = start_stream(tx, self.selected_device.clone(), self.referance_pitch);
         self.audio_stream = Some(stream);
         self.audio_receiver = Some(rx);
     }
@@ -91,7 +99,30 @@ impl App {
             KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.exit()
             }
-            KeyCode::Char('i') => self.is_popup_open = !self.is_popup_open,
+            KeyCode::Char('i') => {
+                self.devices = get_devices().0;
+                self.list_selected_index = 0;
+                self.is_popup_open = !self.is_popup_open;
+            }
+            KeyCode::Char('a') => {
+                self.is_referance_pitch_edit_on = !self.is_referance_pitch_edit_on;
+                self.referance_pitch_blink_state = false;
+            }
+
+            _ if self.is_referance_pitch_edit_on => match key_event.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Right | KeyCode::Char('l') => {
+                    self.referance_pitch_blink_state = false;
+                    self.last_tick = Some(Instant::now());
+                    self.referance_pitch = self.referance_pitch + 1;
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Left | KeyCode::Char('h') => {
+                    self.referance_pitch_blink_state = false;
+                    self.last_tick = Some(Instant::now());
+                    self.referance_pitch = self.referance_pitch - 1;
+                }
+                KeyCode::Esc => self.is_referance_pitch_edit_on = false,
+                _ => {}
+            },
             _ if self.is_popup_open => match key_event.code {
                 KeyCode::Up | KeyCode::Char('k') => {
                     if self.list_selected_index != 0 {
@@ -113,6 +144,13 @@ impl App {
                 _ => {}
             },
             _ => {}
+        }
+    }
+
+    fn blink_on_tick(&mut self) {
+        if self.last_tick.unwrap().elapsed() > Duration::from_millis(500) {
+            self.referance_pitch_blink_state = !self.referance_pitch_blink_state;
+            self.last_tick = Some(Instant::now());
         }
     }
 

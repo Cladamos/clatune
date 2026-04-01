@@ -33,7 +33,7 @@ impl Widget for &App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let instructions = Line::from(vec![
             "[i -> Input Devices] ".fg(Color::DarkGray),
-            "[q, ctrl+c -> Quit] ".fg(Color::DarkGray),
+            "[a -> Change Reference Pitch] ".fg(Color::DarkGray),
         ]);
         let instruction_block = Block::default()
             .title_bottom(instructions)
@@ -42,6 +42,8 @@ impl Widget for &App {
 
         let tuner = Tuner {
             data: self.tuner_data.clone(),
+            referance_pitch: self.referance_pitch,
+            referance_pitch_blink_state: self.referance_pitch_blink_state,
         };
         tuner.render(area, buf);
 
@@ -54,11 +56,7 @@ impl Widget for &App {
             area,
         );
 
-        let popup_instracttions = Line::from(vec![
-            "[↑/k -> Up] ".fg(Color::Blue),
-            "[↓/j -> Down] ".fg(Color::Blue),
-            "[Enter -> Select]".fg(Color::Blue),
-        ]);
+        let popup_instracttions = Line::from(vec!["[Enter -> Select]".fg(Color::Blue)]);
 
         let mut popup_list_state = ListState::default();
         popup_list_state.select(Some(self.list_selected_index));
@@ -80,6 +78,8 @@ impl Widget for &App {
 #[derive(Debug, Default)]
 struct Tuner {
     data: TunerData,
+    referance_pitch: u16,
+    referance_pitch_blink_state: bool,
 }
 
 impl Widget for &Tuner {
@@ -96,7 +96,7 @@ impl Widget for &Tuner {
             Constraint::Max(2),
             Constraint::Max(3),
             Constraint::Max(1),
-            Constraint::Length(1),
+            Constraint::Max(1),
             Constraint::Max(1),
         ])
         .flex(Flex::Center)
@@ -152,7 +152,19 @@ impl Widget for &Tuner {
         let tune_indicator = Paragraph::new("█")
             .style(Style::new().fg(color_according_to_cent))
             .alignment(Alignment::Left);
+        let tuner_details_layout = Layout::horizontal([
+            Constraint::Length(10),
+            Constraint::Length(1),
+            Constraint::Length(10),
+        ])
+        .flex(Flex::SpaceBetween)
+        .split(tuner_layout[2]);
         let up_arrow = Paragraph::new("▲").alignment(Alignment::Center);
+        let referance_pitch = if self.referance_pitch_blink_state {
+            Paragraph::new("")
+        } else {
+            Paragraph::new(format!("A4 = {}Hz", self.referance_pitch)).fg(Color::Gray)
+        };
 
         let tuner_bar = Block::bordered().border_set(border::ROUNDED);
         let tuner_bar_area = centered_rect(
@@ -183,7 +195,8 @@ impl Widget for &Tuner {
             .alignment(Alignment::Center);
 
         tune_indicator.render(tuner_bar_layout[1], buf);
-        up_arrow.render(tuner_layout[2], buf);
+        up_arrow.render(tuner_details_layout[1], buf);
+        referance_pitch.render(tuner_details_layout[2], buf);
         tuner_bar.render(tuner_layout[1], buf);
         cent_paragraph.render(tuner_layout[4], buf);
     }

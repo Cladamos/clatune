@@ -24,7 +24,11 @@ pub fn get_devices() -> (Vec<String>, String) {
     (devices, default_device)
 }
 
-pub fn start_stream(tx: Sender<TunerData>, device_name: String) -> cpal::Stream {
+pub fn start_stream(
+    tx: Sender<TunerData>,
+    device_name: String,
+    referance_pitch: u16,
+) -> cpal::Stream {
     let host = cpal::default_host();
     let device = host
         .devices()
@@ -51,7 +55,7 @@ pub fn start_stream(tx: Sender<TunerData>, device_name: String) -> cpal::Stream 
                     let signal = &input_buffer[0..4096];
                     let mut detector = McLeodDetector::new(4096, 2048);
                     if let Some(pitch) = detector.get_pitch(&signal, sample_rate, 0.008, 0.6) {
-                        let _ = tx.send(get_tuner_data(pitch.frequency));
+                        let _ = tx.send(get_tuner_data(pitch.frequency, referance_pitch));
                     }
                     input_buffer.drain(0..2048);
                 }
@@ -87,13 +91,16 @@ fn letter_to_string(letter: Letter) -> &'static str {
     }
 }
 
-fn get_tuner_data(frequency: f32) -> TunerData {
+fn get_tuner_data(frequency: f32, referance_pitch: u16) -> TunerData {
     const NOTES: [&str; 12] = [
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
     ];
-    let (note, octave) = letter_octave_from_hz(frequency);
 
-    let input_step = Hz(frequency).to_step().0;
+    // I'm not tested that yet
+    let hz_diff = (referance_pitch - 440) as f32;
+    let (note, octave) = letter_octave_from_hz(frequency - hz_diff);
+
+    let input_step = Hz(frequency - hz_diff).to_step().0;
     let nearest_step = step_from_letter_octave(note, octave);
 
     // I guess in this crate stesp are semitones
