@@ -1,7 +1,14 @@
 [package]
 name = "clatune"
 version = "0.1.0"
+description = "Tune your instrument in a cool way"
+authors = ["Cladamos"]
+license = "MIT"
 edition = "2024"
+repository = "https://github.com/cladamos/clatune"
+readme = "README.md"
+keywords = ["tui", "ratatui", "guitar", "tuner", "audio"]
+categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
 color-eyre = "0.6.3"
