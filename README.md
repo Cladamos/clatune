@@ -31,8 +31,8 @@ No additional libraries are required.
 **Windows:**
 No additional libraries are required.
 
-### Rust
 
+### Install `clatune` with `cargo`
 ```bash
 cargo install --git https://github.com/cladamos/clatune
 ```
