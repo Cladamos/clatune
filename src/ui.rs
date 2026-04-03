@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListSt
 use ratatui::{layout::Flex, widgets::Paragraph};
 use tui_big_text::{BigText, PixelSize};
 
-use crate::app::{App, ClatuneDevice, TunerData};
+use crate::app::{App, AppNote, ClatuneDevice, TunerData};
 struct CenterOpts {
     width: u16,
     height: u16,
@@ -117,35 +117,44 @@ impl Widget for &Tuner {
             Color::Green
         };
 
-        for i in 0..3 {
-            let color = if i == 1 {
-                color_according_to_cent
-            } else {
-                Color::Gray
-            };
-            let pitch_data = &self.data.pitches[i];
-            let pitch_layout = Layout::horizontal([
-                Constraint::Length(1),
-                Constraint::Length(4),
-                Constraint::Length(1),
-            ])
-            .split(pitches_layout[i]);
+        let default_appnote = AppNote::default();
+        if !self.data.pitches.contains(&default_appnote) {
+            for i in 0..3 {
+                let color = if i == 1 {
+                    color_according_to_cent
+                } else {
+                    Color::Gray
+                };
+                let pitch_data = &self.data.pitches[i];
+                let pitch_layout = Layout::horizontal([
+                    Constraint::Length(1),
+                    Constraint::Length(4),
+                    Constraint::Length(1),
+                ])
+                .split(pitches_layout[i]);
 
-            let pitch_details = Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
-                .split(pitch_layout[2]);
+                let pitch_details =
+                    Layout::vertical([Constraint::Length(1), Constraint::Length(1)])
+                        .split(pitch_layout[2]);
 
-            let note = BigText::builder()
-                .pixel_size(PixelSize::Octant)
-                .lines(vec![pitch_data.note.clone().fg(color).into()])
-                .centered()
-                .build();
-            let octave = Paragraph::new(pitch_data.octave.to_string()).fg(color);
-            if pitch_data.is_sharp {
-                let sharp = Paragraph::new("#").fg(color).bold();
-                sharp.render(pitch_details[0], buf);
+                let note = BigText::builder()
+                    .pixel_size(PixelSize::Octant)
+                    .lines(vec![pitch_data.note.clone().fg(color).into()])
+                    .centered()
+                    .build();
+                let octave = Paragraph::new(pitch_data.octave.to_string()).fg(color);
+                if pitch_data.is_sharp {
+                    let sharp = Paragraph::new("#").fg(color).bold();
+                    sharp.render(pitch_details[0], buf);
+                }
+                note.render(pitch_layout[1], buf);
+                octave.render(pitch_details[1], buf);
             }
-            note.render(pitch_layout[1], buf);
-            octave.render(pitch_details[1], buf);
+        } else {
+            let waiting_msg = Paragraph::new("Waiting for signal")
+                .green()
+                .alignment(Alignment::Center);
+            waiting_msg.render(tuner_layout[0], buf);
         }
 
         // let down_arrow = Paragraph::new("▼").alignment(Alignment::Center);

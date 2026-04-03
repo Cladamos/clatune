@@ -26,7 +26,7 @@ pub struct App {
     pub list_selected_index: usize,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct AppNote {
     pub note: String,
     pub octave: i32,
