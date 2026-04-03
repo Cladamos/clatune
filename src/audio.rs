@@ -9,12 +9,26 @@ use std::sync::mpsc::Sender;
 
 use crate::app::{AppNote, ClatuneDevice, TunerData};
 
+fn get_best_host() -> cpal::Host {
+    let available_hosts = cpal::available_hosts();
+
+    if available_hosts.contains(&cpal::HostId::PipeWire) {
+        return cpal::host_from_id(cpal::HostId::PipeWire).expect("Failed to initialize PipeWire");
+    }
+
+    if available_hosts.contains(&cpal::HostId::PulseAudio) {
+        return cpal::host_from_id(cpal::HostId::PulseAudio)
+            .expect("Failed to initialize PulseAudio");
+    }
+
+    cpal::default_host()
+}
+
 pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
-    let host = cpal::default_host();
+    let host = get_best_host();
     let devices: Vec<ClatuneDevice> = host
-        .devices()
+        .input_devices()
         .expect("No devices found")
-        .filter(|device| device.supports_input())
         .map(|device| ClatuneDevice {
             name: device.description().unwrap().name().to_string(),
             id: device.id().unwrap().to_string(),
@@ -38,9 +52,9 @@ pub fn start_stream(
     device_id: DeviceId,
     referance_pitch: u16,
 ) -> cpal::Stream {
-    let host = cpal::default_host();
+    let host = get_best_host();
     let device = host
-        .devices()
+        .input_devices()
         .expect("No devices found")
         .find(|device| device.id().unwrap() == device_id)
         .expect("Selected input device cannot found");
@@ -57,7 +71,7 @@ pub fn start_stream(
 
     let stream = device
         .build_input_stream(
-            &supported_config.config(),
+            supported_config.config(),
             move |data: &[f32], _| {
                 input_buffer.extend_from_slice(data);
                 let mut smoothed_freq = 0.0;
