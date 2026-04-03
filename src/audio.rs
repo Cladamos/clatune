@@ -44,18 +44,57 @@ pub fn start_stream(
         .with_max_sample_rate();
 
     let sample_rate = supported_config.sample_rate() as usize;
-    let mut input_buffer: Vec<f32> = Vec::with_capacity(4096);
+    let mut input_buffer: Vec<f32> = Vec::with_capacity(8192);
 
     let stream = device
         .build_input_stream(
             &supported_config.config(),
             move |data: &[f32], _| {
                 input_buffer.extend_from_slice(data);
+                let mut smoothed_freq = 0.0;
+                let mut detector = McLeodDetector::new(4096, 2048);
+                let mut lpf_state = 0.0;
+
                 while input_buffer.len() >= 4096 {
-                    let signal = &input_buffer[0..4096];
-                    let mut detector = McLeodDetector::new(4096, 2048);
-                    if let Some(pitch) = detector.get_pitch(&signal, sample_rate, 0.008, 0.6) {
-                        let _ = tx.send(get_tuner_data(pitch.frequency, referance_pitch));
+                    // RMS Noise Gate
+                    let rms = (input_buffer.iter().map(|&x| x * x).sum::<f32>()
+                        / input_buffer.len() as f32)
+                        .sqrt();
+                    if rms > 0.001 {
+                        let signal = &input_buffer[0..4096];
+
+                        // Low Pass Filter
+                        // Alpha is between 0 and 1 (0 = no output, 1 = no filtering)
+                        let lpf_alpha = 0.15;
+                        let filtered_signal: Vec<f32> = signal
+                            .iter()
+                            .map(|&x| {
+                                // First-Order IIR Filter Math
+                                lpf_state = lpf_state + lpf_alpha * (x - lpf_state);
+                                lpf_state
+                            })
+                            .collect();
+
+                        if let Some(pitch) =
+                            detector.get_pitch(&filtered_signal, sample_rate, 0.008, 0.6)
+                        {
+                            // Smooth the signal
+                            // It smoothes the rapid frequency jumps with using previous values
+                            // Alpha is between 0 and 1 (0 = no smoothing, 1 = no new data)
+                            if pitch.frequency > 20.0 && pitch.frequency < 2000.0 {
+                                let s_alpha = 0.3;
+                                if smoothed_freq == 0.0 {
+                                    smoothed_freq = pitch.frequency;
+                                } else {
+                                    smoothed_freq = (s_alpha * pitch.frequency)
+                                        + ((1.0 - s_alpha) * smoothed_freq);
+                                }
+
+                                let _ = tx.send(get_tuner_data(smoothed_freq, referance_pitch));
+                            }
+                        }
+                    } else {
+                        smoothed_freq = 0.0;
                     }
                     input_buffer.drain(0..2048);
                 }
