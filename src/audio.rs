@@ -9,7 +9,9 @@ use std::sync::mpsc::Sender;
 
 use crate::app::{AppNote, ClatuneDevice, TunerData};
 
-fn get_best_host() -> cpal::Host {
+#[cfg(target_os = "linux")]
+// TODO: Hide output devices from list
+fn get_host() -> cpal::Host {
     let available_hosts = cpal::available_hosts();
 
     if available_hosts.contains(&cpal::HostId::PipeWire) {
@@ -24,8 +26,13 @@ fn get_best_host() -> cpal::Host {
     cpal::default_host()
 }
 
+#[cfg(not(target_os = "linux"))]
+fn get_host() -> cpal::Host {
+    cpal::default_host()
+}
+
 pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
-    let host = get_best_host();
+    let host = get_host();
     let devices: Vec<ClatuneDevice> = host
         .input_devices()
         .expect("No devices found")
@@ -52,7 +59,7 @@ pub fn start_stream(
     device_id: DeviceId,
     referance_pitch: u16,
 ) -> cpal::Stream {
-    let host = get_best_host();
+    let host = get_host();
     let device = host
         .input_devices()
         .expect("No devices found")
