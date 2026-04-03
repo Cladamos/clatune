@@ -7,28 +7,30 @@ use pitch_detection::detector::PitchDetector;
 use pitch_detection::detector::mcleod::McLeodDetector;
 use std::sync::mpsc::Sender;
 
-use crate::app::{AppNote, TunerData};
+use crate::app::{AppNote, ClatuneDevice, TunerData};
 
-pub fn get_devices() -> (Vec<(String, DeviceId)>, DeviceId) {
+pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
     let host = cpal::default_host();
-    let devices: Vec<(String, DeviceId)> = host
+    let devices: Vec<ClatuneDevice> = host
         .devices()
         .expect("No devices found")
         .filter(|device| device.supports_input())
-        .map(|device| {
-            (
-                device.description().unwrap().name().to_string(),
-                device.id().unwrap(),
-            )
+        .map(|device| ClatuneDevice {
+            name: device.description().unwrap().name().to_string(),
+            id: device.id().unwrap().to_string(),
         })
         .collect();
     let default_device = host
         .default_input_device()
-        .expect("Default device couldnt found")
-        .id()
-        .unwrap();
+        .expect("Default device couldnt found");
 
-    (devices, default_device)
+    (
+        devices,
+        ClatuneDevice {
+            name: default_device.description().unwrap().name().to_string(),
+            id: default_device.id().unwrap().to_string(),
+        },
+    )
 }
 
 pub fn start_stream(
