@@ -39,8 +39,8 @@ pub struct TunerData {
 }
 #[derive(Debug, Default, Clone)]
 pub struct ClatuneDevice {
-    pub name: String,
     pub id: String,
+    pub name: String,
 }
 
 impl App {

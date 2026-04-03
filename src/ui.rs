@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListSt
 use ratatui::{layout::Flex, widgets::Paragraph};
 use tui_big_text::{BigText, PixelSize};
 
-use crate::app::{App, TunerData};
+use crate::app::{App, ClatuneDevice, TunerData};
 struct CenterOpts {
     width: u16,
     height: u16,
@@ -62,18 +62,13 @@ impl Widget for &App {
         popup_list_state.select(Some(self.list_selected_index));
 
         let mut popup = Popup::default()
-            .content(
-                self.devices
-                    .iter()
-                    .map(|device| device.name.clone())
-                    .collect(),
-            )
+            .content(self.devices.clone())
             .title("Input Devices")
             .bottom_title(popup_instracttions)
             .title_style(Style::new().blue().bold())
             .border_style(Style::new().blue())
             .list_state(popup_list_state)
-            .selected_device(self.selected_device.name.clone());
+            .selected_device(self.selected_device.clone());
 
         if self.is_popup_open {
             popup.render(popup_area, buf);
@@ -213,11 +208,11 @@ struct Popup<'a> {
     title: Line<'a>,
     #[setters(into)]
     bottom_title: Line<'a>,
-    content: Vec<String>,
     border_style: Style,
     title_style: Style,
     list_state: ListState,
-    selected_device: String,
+    content: Vec<ClatuneDevice>,
+    selected_device: ClatuneDevice,
 }
 
 impl Widget for &mut Popup<'_> {
@@ -233,9 +228,8 @@ impl Widget for &mut Popup<'_> {
             .border_type(BorderType::Rounded);
 
         let list_items = self.content.iter().map(|s| {
-            let item = ListItem::new(s.clone());
-            let item_name = s.clone();
-            if item_name == self.selected_device {
+            let item = ListItem::new(s.clone().name);
+            if s.id == self.selected_device.id {
                 item.style(Style::new().fg(Color::White)).reversed()
             } else {
                 item.style(Style::new().fg(Color::White))

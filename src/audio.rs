@@ -1,5 +1,5 @@
 use cpal::{
-    DeviceId,
+    Device, DeviceId,
     traits::{DeviceTrait, HostTrait, StreamTrait},
 };
 use pitch_calc::{Hz, Letter, letter_octave_from_hz, step_from_letter_octave};
@@ -10,7 +10,6 @@ use std::sync::mpsc::Sender;
 use crate::app::{AppNote, ClatuneDevice, TunerData};
 
 #[cfg(target_os = "linux")]
-// TODO: Hide output devices from list
 fn get_host() -> cpal::Host {
     let available_hosts = cpal::available_hosts();
 
@@ -32,13 +31,24 @@ fn get_host() -> cpal::Host {
 }
 
 pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
+    fn get_channels(d: Device) -> String {
+        let mut channels: String = String::from("");
+        if let Ok(config) = d.default_input_config() {
+            channels = format!(" ({}ch)", config.channels().to_string());
+        }
+        channels
+    }
+    // TODO: Hide monitor devices from list
+    // I didn't get can I do it on cpal without typing linux specific ALSA code
+    // Right now I just added channels so user can see it is mono or stereo
     let host = get_host();
     let devices: Vec<ClatuneDevice> = host
         .input_devices()
         .expect("No devices found")
+        .filter(|device| device.description().unwrap().name().to_string() != "unknown")
         .map(|device| ClatuneDevice {
-            name: device.description().unwrap().name().to_string(),
             id: device.id().unwrap().to_string(),
+            name: device.description().unwrap().name().to_string() + get_channels(device).as_str(),
         })
         .collect();
     let default_device = host
@@ -48,8 +58,9 @@ pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
     (
         devices,
         ClatuneDevice {
-            name: default_device.description().unwrap().name().to_string(),
             id: default_device.id().unwrap().to_string(),
+            name: default_device.description().unwrap().name().to_string()
+                + get_channels(default_device).as_str(),
         },
     )
 }
