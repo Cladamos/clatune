@@ -8,15 +8,15 @@ use crate::app::{AppNote, TunerData};
 
 pub fn get_devices() -> (Vec<String>, String) {
     let host = cpal::default_host();
-    let devices = host
+    let devices: Vec<String> = host
         .devices()
-        .unwrap()
+        .expect("No devices found")
         .filter(|device| device.supports_input())
         .map(|device| device.description().unwrap().name().to_string())
         .collect();
     let default_device = host
         .default_input_device()
-        .unwrap()
+        .expect(&devices[0])
         .description()
         .unwrap()
         .name()
@@ -34,13 +34,13 @@ pub fn start_stream(
         .devices()
         .unwrap()
         .find(|device| device.description().unwrap().name() == device_name)
-        .expect("No default input device found");
+        .expect("No input device found");
     let mut supported_configs_range = device
         .supported_input_configs()
-        .expect("error while querying configs");
+        .expect("Error while querying configs");
     let supported_config = supported_configs_range
         .next()
-        .expect("no supported config?!")
+        .expect("No supported config")
         .with_max_sample_rate();
 
     let sample_rate = supported_config.sample_rate() as usize;
