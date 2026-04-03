@@ -1,4 +1,5 @@
 use crate::audio::{get_devices, start_stream};
+use cpal::DeviceId;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::{DefaultTerminal, prelude::*};
 use std::{
@@ -21,8 +22,8 @@ pub struct App {
     pub tuner_data: TunerData,
 
     pub is_popup_open: bool,
-    pub devices: Vec<String>,
-    pub selected_device: String,
+    pub devices: Vec<(String, DeviceId)>,
+    pub selected_device: Option<DeviceId>,
     pub list_selected_index: usize,
 }
 
@@ -45,7 +46,7 @@ impl App {
         self.last_tick = Some(Instant::now());
         let (devices, default_device) = get_devices();
         self.devices = devices;
-        self.selected_device = default_device;
+        self.selected_device = Some(default_device);
         self.connect_audio();
 
         while !self.exit {
@@ -66,7 +67,11 @@ impl App {
 
     fn connect_audio(&mut self) {
         let (tx, rx) = mpsc::channel::<TunerData>();
-        let stream = start_stream(tx, self.selected_device.clone(), self.referance_pitch);
+        let stream = start_stream(
+            tx,
+            self.selected_device.clone().unwrap(),
+            self.referance_pitch,
+        );
         self.audio_stream = Some(stream);
         self.audio_receiver = Some(rx);
     }
@@ -136,7 +141,7 @@ impl App {
                 }
                 KeyCode::Esc => self.is_popup_open = false,
                 KeyCode::Enter => {
-                    self.selected_device = self.devices[self.list_selected_index].clone();
+                    self.selected_device = Some(self.devices[self.list_selected_index].1.clone());
                     self.disconnect_audio();
                     self.connect_audio();
                     self.is_popup_open = false;

@@ -62,13 +62,13 @@ impl Widget for &App {
         popup_list_state.select(Some(self.list_selected_index));
 
         let mut popup = Popup::default()
-            .content(self.devices.clone())
+            .content(self.devices.iter().map(|device| device.0.clone()).collect())
             .title("Input Devices")
             .bottom_title(popup_instracttions)
             .title_style(Style::new().blue().bold())
             .border_style(Style::new().blue())
             .list_state(popup_list_state)
-            .selected_device(self.selected_device.clone());
+            .selected_device(self.selected_device.clone().unwrap().to_string());
 
         if self.is_popup_open {
             popup.render(popup_area, buf);

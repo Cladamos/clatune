@@ -1,4 +1,7 @@
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{
+    DeviceId,
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+};
 use pitch_calc::{Hz, Letter, letter_octave_from_hz, step_from_letter_octave};
 use pitch_detection::detector::PitchDetector;
 use pitch_detection::detector::mcleod::McLeodDetector;
@@ -6,35 +9,39 @@ use std::sync::mpsc::Sender;
 
 use crate::app::{AppNote, TunerData};
 
-pub fn get_devices() -> (Vec<String>, String) {
+pub fn get_devices() -> (Vec<(String, DeviceId)>, DeviceId) {
     let host = cpal::default_host();
-    let devices: Vec<String> = host
+    let devices: Vec<(String, DeviceId)> = host
         .devices()
         .expect("No devices found")
         .filter(|device| device.supports_input())
-        .map(|device| device.description().unwrap().name().to_string())
+        .map(|device| {
+            (
+                device.description().unwrap().name().to_string(),
+                device.id().unwrap(),
+            )
+        })
         .collect();
     let default_device = host
         .default_input_device()
-        .expect(&devices[0])
-        .description()
-        .unwrap()
-        .name()
-        .to_string();
+        .expect("Default device couldnt found")
+        .id()
+        .unwrap();
+
     (devices, default_device)
 }
 
 pub fn start_stream(
     tx: Sender<TunerData>,
-    device_name: String,
+    device_id: DeviceId,
     referance_pitch: u16,
 ) -> cpal::Stream {
     let host = cpal::default_host();
     let device = host
         .devices()
-        .unwrap()
-        .find(|device| device.description().unwrap().name() == device_name)
-        .expect("No input device found");
+        .expect("No devices found")
+        .find(|device| device.id().unwrap() == device_id)
+        .expect("Selected input device cannot found");
     let mut supported_configs_range = device
         .supported_input_configs()
         .expect("Error while querying configs");
