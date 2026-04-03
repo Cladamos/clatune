@@ -109,29 +109,23 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('i') => {
+                if self.is_referance_pitch_edit_on {
+                    self.reset_blink();
+                    self.is_referance_pitch_edit_on = false;
+                }
                 self.devices = get_devices().0;
                 self.list_selected_index = 0;
                 self.is_popup_open = !self.is_popup_open;
             }
             KeyCode::Char('a') => {
+                if self.is_popup_open {
+                    self.is_popup_open = false;
+                    self.list_selected_index = 0;
+                }
                 self.is_referance_pitch_edit_on = !self.is_referance_pitch_edit_on;
                 self.referance_pitch_blink_state = false;
             }
 
-            _ if self.is_referance_pitch_edit_on => match key_event.code {
-                KeyCode::Up | KeyCode::Char('k') | KeyCode::Right | KeyCode::Char('l') => {
-                    self.referance_pitch_blink_state = false;
-                    self.last_tick = Some(Instant::now());
-                    self.referance_pitch = self.referance_pitch + 1;
-                }
-                KeyCode::Down | KeyCode::Char('j') | KeyCode::Left | KeyCode::Char('h') => {
-                    self.referance_pitch_blink_state = false;
-                    self.last_tick = Some(Instant::now());
-                    self.referance_pitch = self.referance_pitch - 1;
-                }
-                KeyCode::Esc => self.is_referance_pitch_edit_on = false,
-                _ => {}
-            },
             _ if self.is_popup_open => match key_event.code {
                 KeyCode::Up | KeyCode::Char('k') => {
                     if self.list_selected_index != 0 {
@@ -152,8 +146,24 @@ impl App {
                 }
                 _ => {}
             },
+            _ if self.is_referance_pitch_edit_on => match key_event.code {
+                KeyCode::Up | KeyCode::Char('k') | KeyCode::Right | KeyCode::Char('l') => {
+                    self.reset_blink();
+                    self.referance_pitch = self.referance_pitch + 1;
+                }
+                KeyCode::Down | KeyCode::Char('j') | KeyCode::Left | KeyCode::Char('h') => {
+                    self.reset_blink();
+                    self.referance_pitch = self.referance_pitch - 1;
+                }
+                KeyCode::Esc => self.is_referance_pitch_edit_on = false,
+                _ => {}
+            },
             _ => {}
         }
+    }
+    fn reset_blink(&mut self) {
+        self.referance_pitch_blink_state = false;
+        self.last_tick = Some(Instant::now());
     }
 
     fn blink_on_tick(&mut self) {
