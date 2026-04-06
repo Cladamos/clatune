@@ -166,7 +166,12 @@ impl App {
                         self.reference_pitch -= 1;
                     }
                 }
-                KeyCode::Esc | KeyCode::Enter => self.is_reference_pitch_edit_on = false,
+                KeyCode::Esc | KeyCode::Enter => {
+                    self.disconnect_audio();
+                    self.connect_audio();
+                    self.reset_blink();
+                    self.is_reference_pitch_edit_on = false;
+                }
                 _ => {}
             },
             _ => {}
