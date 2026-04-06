@@ -82,6 +82,7 @@ pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
 
 pub fn start_stream(
     tx: Sender<TunerData>,
+    err_tx: Sender<String>,
     device_id: DeviceId,
     reference_pitch: u16,
 ) -> Result<cpal::Stream, String> {
@@ -161,7 +162,9 @@ pub fn start_stream(
                     input_buffer.drain(0..2048);
                 }
             },
-            |err| eprintln!("Error: {:?}", err),
+            move |err| {
+                let _ = err_tx.send(format!("Stream error: {}", err));
+            },
             None,
         )
         .map_err(|e| format!("Failed to build input stream: {}", e))?;

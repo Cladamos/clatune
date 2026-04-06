@@ -11,6 +11,7 @@ pub struct App {
     exit: bool,
     audio_stream: Option<cpal::Stream>,
     audio_receiver: Option<mpsc::Receiver<TunerData>>,
+    error_receiver: Option<mpsc::Receiver<String>>,
 
     last_tick: Instant,
     is_reference_pitch_edit_on: bool,
@@ -32,6 +33,7 @@ impl App {
             exit: false,
             audio_stream: None,
             audio_receiver: None,
+            error_receiver: None,
             last_tick: Instant::now(),
             is_reference_pitch_edit_on: false,
             reference_pitch: 440,
@@ -76,6 +78,12 @@ impl App {
                 }
             }
 
+            if let Some(err_rx) = &self.error_receiver {
+                if let Ok(err) = err_rx.try_recv() {
+                    self.error_msg = err;
+                }
+            }
+
             terminal.draw(|frame| self.draw(frame))?;
             if event::poll(tick_rate)? {
                 self.handle_events()?;
@@ -97,10 +105,12 @@ impl App {
         };
 
         let (tx, rx) = mpsc::channel::<TunerData>();
-        match start_stream(tx, device_id, self.reference_pitch) {
+        let (err_tx, err_rx) = mpsc::channel::<String>();
+        match start_stream(tx, err_tx, device_id, self.reference_pitch) {
             Ok(s) => {
                 self.audio_stream = Some(s);
                 self.audio_receiver = Some(rx);
+                self.error_receiver = Some(err_rx);
                 self.error_msg = String::new();
             }
             Err(e) => self.error_msg = e,
@@ -110,6 +120,7 @@ impl App {
     fn disconnect_audio(&mut self) {
         self.audio_stream = None;
         self.audio_receiver = None;
+        self.error_receiver = None;
     }
 
     fn draw(&self, frame: &mut Frame) {
