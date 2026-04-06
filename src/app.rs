@@ -14,9 +14,9 @@ pub struct App {
     audio_receiver: Option<mpsc::Receiver<TunerData>>,
 
     last_tick: Option<Instant>,
-    is_referance_pitch_edit_on: bool,
-    pub referance_pitch: u16,
-    pub referance_pitch_blink_state: bool,
+    is_reference_pitch_edit_on: bool,
+    pub reference_pitch: u16,
+    pub reference_pitch_blink_state: bool,
 
     pub tuner_data: TunerData,
 
@@ -45,9 +45,9 @@ pub struct ClatuneDevice {
 }
 
 impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
-        self.referance_pitch = 440;
+        self.reference_pitch = 440;
         self.last_tick = Some(Instant::now());
         self.handle_devices();
         self.connect_audio();
@@ -63,7 +63,7 @@ impl App {
             if event::poll(tick_rate)? {
                 self.handle_events()?;
             }
-            if self.is_referance_pitch_edit_on {
+            if self.is_reference_pitch_edit_on {
                 self.blink_on_tick();
             }
         }
@@ -75,12 +75,12 @@ impl App {
         match start_stream(
             tx,
             self.selected_device.id.parse().unwrap(),
-            self.referance_pitch,
+            self.reference_pitch,
         ) {
             Ok(s) => {
                 self.audio_stream = Some(s);
                 self.audio_receiver = Some(rx);
-                self.error_msg = "".to_string();
+                self.error_msg = String::new();
             }
             Err(e) => self.error_msg = e,
         };
@@ -115,9 +115,9 @@ impl App {
                 self.exit()
             }
             KeyCode::Char('i') => {
-                if self.is_referance_pitch_edit_on {
+                if self.is_reference_pitch_edit_on {
                     self.reset_blink();
-                    self.is_referance_pitch_edit_on = false;
+                    self.is_reference_pitch_edit_on = false;
                 }
                 self.handle_devices();
                 self.list_selected_index = 0;
@@ -128,19 +128,19 @@ impl App {
                     self.is_popup_open = false;
                     self.list_selected_index = 0;
                 }
-                self.is_referance_pitch_edit_on = !self.is_referance_pitch_edit_on;
-                self.referance_pitch_blink_state = false;
+                self.is_reference_pitch_edit_on = !self.is_reference_pitch_edit_on;
+                self.reference_pitch_blink_state = false;
             }
 
             _ if self.is_popup_open => match key_event.code {
                 KeyCode::Up | KeyCode::Char('k') => {
                     if self.list_selected_index != 0 {
-                        self.list_selected_index = self.list_selected_index - 1;
+                        self.list_selected_index -= 1;
                     }
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
                     if self.devices.len() - 1 != self.list_selected_index {
-                        self.list_selected_index = self.list_selected_index + 1;
+                        self.list_selected_index += 1;
                     }
                 }
                 KeyCode::Char('r') => {
@@ -155,39 +155,41 @@ impl App {
                 }
                 _ => {}
             },
-            _ if self.is_referance_pitch_edit_on => match key_event.code {
+            _ if self.is_reference_pitch_edit_on => match key_event.code {
                 KeyCode::Up | KeyCode::Char('k') | KeyCode::Right | KeyCode::Char('l') => {
                     self.reset_blink();
-                    self.referance_pitch = self.referance_pitch + 1;
+                    self.reference_pitch += 1;
                 }
                 KeyCode::Down | KeyCode::Char('j') | KeyCode::Left | KeyCode::Char('h') => {
                     self.reset_blink();
-                    self.referance_pitch = self.referance_pitch - 1;
+                    if self.reference_pitch != 0 {
+                        self.reference_pitch -= 1;
+                    }
                 }
-                KeyCode::Esc => self.is_referance_pitch_edit_on = false,
+                KeyCode::Esc | KeyCode::Enter => self.is_reference_pitch_edit_on = false,
                 _ => {}
             },
             _ => {}
         }
     }
     fn reset_blink(&mut self) {
-        self.referance_pitch_blink_state = false;
+        self.reference_pitch_blink_state = false;
         self.last_tick = Some(Instant::now());
     }
 
     fn blink_on_tick(&mut self) {
         if self.last_tick.unwrap().elapsed() > Duration::from_millis(500) {
-            self.referance_pitch_blink_state = !self.referance_pitch_blink_state;
+            self.reference_pitch_blink_state = !self.reference_pitch_blink_state;
             self.last_tick = Some(Instant::now());
         }
     }
 
     fn handle_devices(&mut self) {
         match get_devices() {
-            Ok(data) => {
-                self.devices = data.0;
-                if self.selected_device.id == "" {
-                    self.selected_device = data.1
+            Ok((devices, default_device)) => {
+                self.devices = devices;
+                if self.selected_device.id.is_empty() {
+                    self.selected_device = default_device;
                 }
             }
             Err(e) => self.error_msg = e,

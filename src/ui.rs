@@ -40,11 +40,11 @@ impl Widget for &App {
             .title_alignment(Alignment::Center);
         instruction_block.render(area, buf);
 
-        if self.error_msg == "" {
+        if self.error_msg.is_empty() {
             let tuner = Tuner {
                 data: self.tuner_data.clone(),
-                referance_pitch: self.referance_pitch,
-                referance_pitch_blink_state: self.referance_pitch_blink_state,
+                reference_pitch: self.reference_pitch,
+                reference_pitch_blink_state: self.reference_pitch_blink_state,
             };
             tuner.render(area, buf);
         } else {
@@ -87,8 +87,8 @@ impl Widget for &App {
 #[derive(Debug, Default)]
 struct Tuner {
     data: TunerData,
-    referance_pitch: u16,
-    referance_pitch_blink_state: bool,
+    reference_pitch: u16,
+    reference_pitch_blink_state: bool,
 }
 
 impl Widget for &Tuner {
@@ -178,10 +178,10 @@ impl Widget for &Tuner {
         .flex(Flex::SpaceBetween)
         .split(tuner_layout[2]);
         let up_arrow = Paragraph::new("▲").alignment(Alignment::Center);
-        let referance_pitch = if self.referance_pitch_blink_state {
+        let reference_pitch = if self.reference_pitch_blink_state {
             Paragraph::new("")
         } else {
-            Paragraph::new(format!("A4 = {}Hz", self.referance_pitch)).fg(Color::Gray)
+            Paragraph::new(format!("A4 = {}Hz", self.reference_pitch)).fg(Color::Gray)
         };
 
         let tuner_bar = Block::bordered().border_set(border::ROUNDED);
@@ -214,7 +214,7 @@ impl Widget for &Tuner {
 
         tune_indicator.render(tuner_bar_layout[1], buf);
         up_arrow.render(tuner_details_layout[1], buf);
-        referance_pitch.render(tuner_details_layout[2], buf);
+        reference_pitch.render(tuner_details_layout[2], buf);
         tuner_bar.render(tuner_layout[1], buf);
         cent_paragraph.render(tuner_layout[4], buf);
     }

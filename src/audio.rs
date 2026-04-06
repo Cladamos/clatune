@@ -32,9 +32,9 @@ fn get_host() -> cpal::Host {
 
 pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
     fn get_channels(d: Device) -> String {
-        let mut channels: String = String::from("");
+        let mut channels: String = String::new();
         if let Ok(config) = d.default_input_config() {
-            channels = format!(" ({}ch)", config.channels().to_string());
+            channels = format!(" ({}ch)", config.channels());
         }
         channels
     }
@@ -83,7 +83,7 @@ pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
 pub fn start_stream(
     tx: Sender<TunerData>,
     device_id: DeviceId,
-    referance_pitch: u16,
+    reference_pitch: u16,
 ) -> Result<cpal::Stream, String> {
     let host = get_host();
     let input_devices = host
@@ -93,8 +93,8 @@ pub fn start_stream(
     let device = input_devices
         .filter_map(|d| d.id().ok().map(|id| (id, d)))
         .find(|(id, _)| *id == device_id)
-        .map(|(_, d)| d)
-        .ok_or_else(|| "Selected input device was not found".to_string())?;
+        .ok_or_else(|| "Selected input device was not found".to_string())?
+        .1;
 
     let mut supported_configs_range = device
         .supported_input_configs()
@@ -152,7 +152,7 @@ pub fn start_stream(
                                         + ((1.0 - s_alpha) * smoothed_freq);
                                 }
 
-                                let _ = tx.send(get_tuner_data(smoothed_freq, referance_pitch));
+                                let _ = tx.send(get_tuner_data(smoothed_freq, reference_pitch));
                             }
                         }
                     } else {
@@ -195,13 +195,13 @@ fn letter_to_string(letter: Letter) -> &'static str {
     }
 }
 
-fn get_tuner_data(frequency: f32, referance_pitch: u16) -> TunerData {
+fn get_tuner_data(frequency: f32, reference_pitch: u16) -> TunerData {
     const NOTES: [&str; 12] = [
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
     ];
 
     // I'm not tested that yet
-    let hz_diff = (referance_pitch - 440) as f32;
+    let hz_diff = (reference_pitch - 440) as f32;
     let (note, octave) = letter_octave_from_hz(frequency - hz_diff);
 
     let input_step = Hz(frequency - hz_diff).to_step().0;
