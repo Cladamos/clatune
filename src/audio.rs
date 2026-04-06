@@ -200,9 +200,8 @@ fn get_tuner_data(frequency: f32, reference_pitch: u16) -> TunerData {
         "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
     ];
 
-    // I'm not tested that yet
-    let hz_diff = (reference_pitch - 440) as f32;
-    let (note, octave) = letter_octave_from_hz(frequency - hz_diff);
+    let hz_diff = f32::from(reference_pitch) / 440.0;
+    let (note, octave) = letter_octave_from_hz(frequency * hz_diff);
 
     let input_step = Hz(frequency - hz_diff).to_step().0;
     let nearest_step = step_from_letter_octave(note, octave);
