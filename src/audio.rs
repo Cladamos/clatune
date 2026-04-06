@@ -30,7 +30,7 @@ fn get_host() -> cpal::Host {
     cpal::default_host()
 }
 
-pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
+pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
     fn get_channels(d: Device) -> String {
         let mut channels: String = String::from("");
         if let Ok(config) = d.default_input_config() {
@@ -42,46 +42,67 @@ pub fn get_devices() -> (Vec<ClatuneDevice>, ClatuneDevice) {
     // I didn't get can I do it on cpal without typing linux specific ALSA code
     // Right now I just added channels so user can see it is mono or stereo
     let host = get_host();
-    let devices: Vec<ClatuneDevice> = host
-        .input_devices()
-        .expect("No devices found")
-        .filter(|device| device.description().unwrap().name().to_string() != "unknown")
-        .map(|device| ClatuneDevice {
-            id: device.id().unwrap().to_string(),
-            name: device.description().unwrap().name().to_string() + get_channels(device).as_str(),
-        })
-        .collect();
-    let default_device = host
-        .default_input_device()
-        .expect("Default device couldnt found");
 
-    (
-        devices,
-        ClatuneDevice {
-            id: default_device.id().unwrap().to_string(),
-            name: default_device.description().unwrap().name().to_string()
-                + get_channels(default_device).as_str(),
-        },
-    )
+    let input_devices = host
+        .input_devices()
+        .map_err(|e| format!("Failed to get input devices: {}", e))?;
+
+    let mut devices = Vec::new();
+
+    for device in input_devices {
+        if let Ok(desc) = device.description() {
+            let name = desc.name();
+            if name != "unknown" {
+                devices.push(ClatuneDevice {
+                    id: device.id().map_err(|e| e.to_string())?.to_string(),
+                    name: format!("{}{}", name, get_channels(device)),
+                });
+            }
+        }
+    }
+
+    if devices.is_empty() {
+        return Err("No input devices found".to_string());
+    }
+
+    let default_device = match host.default_input_device() {
+        Some(device) => {
+            let desc = device.description().map_err(|e| e.to_string())?;
+            ClatuneDevice {
+                id: device.id().map_err(|e| e.to_string())?.to_string(),
+                name: format!("{}{}", desc.name(), get_channels(device)),
+            }
+        }
+
+        None => devices[0].clone(),
+    };
+
+    Ok((devices, default_device))
 }
 
 pub fn start_stream(
     tx: Sender<TunerData>,
     device_id: DeviceId,
     referance_pitch: u16,
-) -> cpal::Stream {
+) -> Result<cpal::Stream, String> {
     let host = get_host();
-    let device = host
+    let input_devices = host
         .input_devices()
-        .expect("No devices found")
-        .find(|device| device.id().unwrap() == device_id)
-        .expect("Selected input device cannot found");
+        .map_err(|e| format!("Failed to get input devices: {}", e))?;
+
+    let device = input_devices
+        .filter_map(|d| d.id().ok().map(|id| (id, d)))
+        .find(|(id, _)| *id == device_id)
+        .map(|(_, d)| d)
+        .ok_or_else(|| "Selected input device was not found".to_string())?;
+
     let mut supported_configs_range = device
         .supported_input_configs()
-        .expect("Error while querying configs");
+        .map_err(|e| format!("Error querying configs: {}", e))?;
+
     let supported_config = supported_configs_range
         .next()
-        .expect("No supported config")
+        .ok_or_else(|| "No supported audio configurations found for this device".to_string())?
         .with_max_sample_rate();
 
     let sample_rate = supported_config.sample_rate() as usize;
@@ -143,10 +164,13 @@ pub fn start_stream(
             |err| eprintln!("Error: {:?}", err),
             None,
         )
-        .expect("No default input stream found");
+        .map_err(|e| format!("Failed to build input stream: {}", e))?;
 
-    stream.play().expect("Failed to start stream");
     stream
+        .play()
+        .map_err(|e| format!("Failed to start audio playback: {}", e))?;
+
+    Ok(stream)
 }
 
 fn letter_to_string(letter: Letter) -> &'static str {

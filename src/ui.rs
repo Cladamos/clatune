@@ -40,12 +40,20 @@ impl Widget for &App {
             .title_alignment(Alignment::Center);
         instruction_block.render(area, buf);
 
-        let tuner = Tuner {
-            data: self.tuner_data.clone(),
-            referance_pitch: self.referance_pitch,
-            referance_pitch_blink_state: self.referance_pitch_blink_state,
-        };
-        tuner.render(area, buf);
+        if self.error_msg == "" {
+            let tuner = Tuner {
+                data: self.tuner_data.clone(),
+                referance_pitch: self.referance_pitch,
+                referance_pitch_blink_state: self.referance_pitch_blink_state,
+            };
+            tuner.render(area, buf);
+        } else {
+            let error = Paragraph::new(self.error_msg.clone())
+                .red()
+                .bold()
+                .alignment(Alignment::Center);
+            error.render(area, buf);
+        }
 
         let popup_area = centered_rect(
             CenterOpts {
@@ -56,7 +64,8 @@ impl Widget for &App {
             area,
         );
 
-        let popup_instracttions = Line::from(vec!["[Enter -> Select]".fg(Color::Blue)]);
+        let popup_instracttions =
+            Line::from(vec!["[Enter -> Select], [r -> Refresh]".fg(Color::Blue)]);
 
         let mut popup_list_state = ListState::default();
         popup_list_state.select(Some(self.list_selected_index));

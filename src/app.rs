@@ -20,6 +20,7 @@ pub struct App {
 
     pub tuner_data: TunerData,
 
+    pub error_msg: String,
     pub is_popup_open: bool,
     pub devices: Vec<ClatuneDevice>,
     pub selected_device: ClatuneDevice,
@@ -48,14 +49,14 @@ impl App {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
         self.referance_pitch = 440;
         self.last_tick = Some(Instant::now());
-        let (devices, default_device) = get_devices();
-        self.devices = devices;
-        self.selected_device = default_device;
+        self.handle_devices();
         self.connect_audio();
 
         while !self.exit {
-            while let Ok(tuner_data) = self.audio_receiver.as_ref().unwrap().try_recv() {
-                self.tuner_data = tuner_data;
+            if let Some(rx) = &self.audio_receiver {
+                while let Ok(tuner_data) = rx.try_recv() {
+                    self.tuner_data = tuner_data;
+                }
             }
 
             terminal.draw(|frame| self.draw(frame))?;
@@ -71,13 +72,18 @@ impl App {
 
     fn connect_audio(&mut self) {
         let (tx, rx) = mpsc::channel::<TunerData>();
-        let stream = start_stream(
+        match start_stream(
             tx,
             self.selected_device.id.parse().unwrap(),
             self.referance_pitch,
-        );
-        self.audio_stream = Some(stream);
-        self.audio_receiver = Some(rx);
+        ) {
+            Ok(s) => {
+                self.audio_stream = Some(s);
+                self.audio_receiver = Some(rx);
+                self.error_msg = "".to_string();
+            }
+            Err(e) => self.error_msg = e,
+        };
     }
 
     fn disconnect_audio(&mut self) {
@@ -113,7 +119,7 @@ impl App {
                     self.reset_blink();
                     self.is_referance_pitch_edit_on = false;
                 }
-                self.devices = get_devices().0;
+                self.handle_devices();
                 self.list_selected_index = 0;
                 self.is_popup_open = !self.is_popup_open;
             }
@@ -136,6 +142,9 @@ impl App {
                     if self.devices.len() - 1 != self.list_selected_index {
                         self.list_selected_index = self.list_selected_index + 1;
                     }
+                }
+                KeyCode::Char('r') => {
+                    self.handle_devices();
                 }
                 KeyCode::Esc => self.is_popup_open = false,
                 KeyCode::Enter => {
@@ -170,6 +179,18 @@ impl App {
         if self.last_tick.unwrap().elapsed() > Duration::from_millis(500) {
             self.referance_pitch_blink_state = !self.referance_pitch_blink_state;
             self.last_tick = Some(Instant::now());
+        }
+    }
+
+    fn handle_devices(&mut self) {
+        match get_devices() {
+            Ok(data) => {
+                self.devices = data.0;
+                if self.selected_device.id == "" {
+                    self.selected_device = data.1
+                }
+            }
+            Err(e) => self.error_msg = e,
         }
     }
 
