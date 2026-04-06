@@ -214,7 +214,7 @@ fn get_tuner_data(frequency: f32, reference_pitch: u16) -> TunerData {
     let index = NOTES
         .iter()
         .position(|&r| r == letter_to_string(note))
-        .unwrap();
+        .expect("Every pitch letter should exist in NOTES array");
     let mut indexes = [0, index, index + 1];
     let mut octaves = [octave, octave, octave];
     if index == 0 {

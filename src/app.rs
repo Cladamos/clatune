@@ -7,13 +7,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Default)]
 pub struct App {
     exit: bool,
     audio_stream: Option<cpal::Stream>,
     audio_receiver: Option<mpsc::Receiver<TunerData>>,
 
-    last_tick: Option<Instant>,
+    last_tick: Instant,
     is_reference_pitch_edit_on: bool,
     pub reference_pitch: u16,
     pub reference_pitch_blink_state: bool,
@@ -25,6 +24,26 @@ pub struct App {
     pub devices: Vec<ClatuneDevice>,
     pub selected_device: ClatuneDevice,
     pub list_selected_index: usize,
+}
+
+impl App {
+    pub fn new() -> Self {
+        Self {
+            exit: false,
+            audio_stream: None,
+            audio_receiver: None,
+            last_tick: Instant::now(),
+            is_reference_pitch_edit_on: false,
+            reference_pitch: 440,
+            reference_pitch_blink_state: false,
+            tuner_data: TunerData::default(),
+            error_msg: String::new(),
+            is_popup_open: false,
+            devices: Vec::new(),
+            selected_device: ClatuneDevice::default(),
+            list_selected_index: 0,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -47,8 +66,6 @@ pub struct ClatuneDevice {
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
-        self.reference_pitch = 440;
-        self.last_tick = Some(Instant::now());
         self.handle_devices();
         self.connect_audio();
 
@@ -71,12 +88,16 @@ impl App {
     }
 
     fn connect_audio(&mut self) {
+        let device_id = match self.selected_device.id.parse() {
+            Ok(id) => id,
+            Err(e) => {
+                self.error_msg = format!("Invalid device ID: {}", e);
+                return;
+            }
+        };
+
         let (tx, rx) = mpsc::channel::<TunerData>();
-        match start_stream(
-            tx,
-            self.selected_device.id.parse().unwrap(),
-            self.reference_pitch,
-        ) {
+        match start_stream(tx, device_id, self.reference_pitch) {
             Ok(s) => {
                 self.audio_stream = Some(s);
                 self.audio_receiver = Some(rx);
@@ -179,13 +200,13 @@ impl App {
     }
     fn reset_blink(&mut self) {
         self.reference_pitch_blink_state = false;
-        self.last_tick = Some(Instant::now());
+        self.last_tick = Instant::now();
     }
 
     fn blink_on_tick(&mut self) {
-        if self.last_tick.unwrap().elapsed() > Duration::from_millis(500) {
+        if self.last_tick.elapsed() > Duration::from_millis(500) {
             self.reference_pitch_blink_state = !self.reference_pitch_blink_state;
-            self.last_tick = Some(Instant::now());
+            self.last_tick = Instant::now();
         }
     }
 
