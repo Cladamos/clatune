@@ -12,7 +12,7 @@ categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
 color-eyre = "0.6.3"
-cpal = { git = "https://github.com/RustAudio/cpal.git", features = ["pulseaudio", "pipewire"] }
+cpal = { git = "https://github.com/RustAudio/cpal.git", rev = "63ea9fff", features = ["pulseaudio", "pipewire"] }
 crossterm = "0.29.0"
 derive_setters = "0.1.9"
 pitch-detection = "0.3.0"

@@ -2,7 +2,9 @@ use derive_setters::Setters;
 use ratatui::prelude::*;
 use ratatui::symbols::border;
 
-use ratatui::widgets::{Block, BorderType, Borders, Clear, List, ListItem, ListState, Widget};
+use ratatui::widgets::{
+    Block, BorderType, Borders, Clear, List, ListItem, ListState, Widget, Wrap,
+};
 use ratatui::{layout::Flex, widgets::Paragraph};
 use tui_big_text::{BigText, PixelSize};
 
@@ -51,7 +53,8 @@ impl Widget for &App {
             let error = Paragraph::new(self.error_msg.clone())
                 .red()
                 .bold()
-                .alignment(Alignment::Center);
+                .alignment(Alignment::Center)
+                .wrap(Wrap { trim: false });
             error.render(area, buf);
         }
 
