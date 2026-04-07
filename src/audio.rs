@@ -128,7 +128,7 @@ pub fn start_stream(
 
                         // Low Pass Filter
                         // Alpha is between 0 and 1 (0 = no output, 1 = no filtering)
-                        let lpf_alpha = 0.15;
+                        let lpf_alpha = 0.02;
                         let filtered_signal: Vec<f32> = signal
                             .iter()
                             .map(|&x| {
@@ -204,9 +204,10 @@ fn get_tuner_data(frequency: f32, reference_pitch: u16) -> TunerData {
     ];
 
     let hz_diff = f32::from(reference_pitch) / 440.0;
-    let (note, octave) = letter_octave_from_hz(frequency * hz_diff);
+    let changed_frequency = frequency * hz_diff;
+    let (note, octave) = letter_octave_from_hz(changed_frequency);
 
-    let input_step = Hz(frequency - hz_diff).to_step().0;
+    let input_step = Hz(changed_frequency).to_step().0;
     let nearest_step = step_from_letter_octave(note, octave);
 
     // I guess in this crate stesp are semitones
