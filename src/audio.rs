@@ -14,12 +14,15 @@ fn get_host() -> cpal::Host {
     let available_hosts = cpal::available_hosts();
 
     if available_hosts.contains(&cpal::HostId::PipeWire) {
-        return cpal::host_from_id(cpal::HostId::PipeWire).expect("Failed to initialize PipeWire");
+        if let Ok(host) = cpal::host_from_id(cpal::HostId::PipeWire) {
+            return host;
+        }
     }
 
     if available_hosts.contains(&cpal::HostId::PulseAudio) {
-        return cpal::host_from_id(cpal::HostId::PulseAudio)
-            .expect("Failed to initialize PulseAudio");
+        if let Ok(host) = cpal::host_from_id(cpal::HostId::PulseAudio) {
+            return host;
+        }
     }
 
     cpal::default_host()

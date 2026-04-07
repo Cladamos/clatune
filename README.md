@@ -8,21 +8,21 @@ A terminal based tuner application written in Rust using [ratatui](https://githu
 
 ### System Dependencies
 
-Since `clatune` processes live audio via `cpal`, you need the following system libraries installed:
+Since `clatune` processes live audio via `cpal` (with PipeWire and PulseAudio backends), you need the following system libraries installed:
 
 **Linux (Ubuntu/Debian/Pop!_OS):**
 ```bash
-sudo apt install libasound2-dev
+sudo apt install libasound2-dev libpipewire-0.3-dev pkg-config clang
 ```
 
 **Arch Linux:**
 ```bash
-sudo pacman -S alsa-lib
+sudo pacman -S alsa-lib pipewire pkg-config clang
 ```
 
 **Fedora:**
 ```bash
-sudo dnf install alsa-lib-devel
+sudo dnf install alsa-lib-devel pipewire-devel pkg-config clang
 ```
 
 **macOS:**
