@@ -110,6 +110,7 @@ pub fn start_stream(
         .with_max_sample_rate();
 
     let sample_rate = supported_config.sample_rate() as usize;
+    let mut is_locked = false;
     let mut input_buffer: Vec<f32> = Vec::with_capacity(8192);
 
     let stream = device
@@ -129,13 +130,17 @@ pub fn start_stream(
                     if rms > 0.001 {
                         let signal = &input_buffer[0..4096];
 
+                        // TODO: Test adaptive LPF
+
                         // Low Pass Filter
                         // Alpha is between 0 and 1 (0 = no output, 1 = no filtering)
-                        let lpf_alpha = 0.02;
+                        // 0.01 while locked to low notes, 0.15 while normal search mode
+                        let lpf_alpha = if is_locked { 0.01 } else { 0.15 };
                         let filtered_signal: Vec<f32> = signal
                             .iter()
                             .map(|&x| {
                                 // First-Order IIR Filter Math
+
                                 lpf_state = lpf_state + lpf_alpha * (x - lpf_state);
                                 lpf_state
                             })
@@ -148,6 +153,12 @@ pub fn start_stream(
                             // It smoothes the rapid frequency jumps with using previous values
                             // Alpha is between 0 and 1 (0 = no smoothing, 1 = no new data)
                             if pitch.frequency > 20.0 && pitch.frequency < 2000.0 {
+                                if pitch.frequency < 100.0 {
+                                    is_locked = true;
+                                } else {
+                                    is_locked = false;
+                                }
+
                                 let s_alpha = 0.3;
                                 if smoothed_freq == 0.0 {
                                     smoothed_freq = pitch.frequency;
