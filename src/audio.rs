@@ -112,14 +112,15 @@ pub fn start_stream(
     let mut is_locked = false;
     let mut input_buffer: Vec<f32> = Vec::with_capacity(8192);
 
+    let mut smoothed_freq = 0.0;
+    let mut lpf_state = 0.0;
+
     let stream = device
         .build_input_stream(
             supported_config.config(),
             move |data: &[f32], _| {
                 input_buffer.extend_from_slice(data);
-                let mut smoothed_freq = 0.0;
                 let mut detector = McLeodDetector::new(4096, 2048);
-                let mut lpf_state = 0.0;
 
                 while input_buffer.len() >= 4096 {
                     // RMS Noise Gate
@@ -150,7 +151,7 @@ pub fn start_stream(
                         {
                             // Smooth the signal
                             // It smoothes the rapid frequency jumps with using previous values
-                            // Alpha is between 0 and 1 (0 = no smoothing, 1 = no new data)
+                            // Alpha is between 0 and 1 (0 = no new data, 1 = no smoothing)
                             if pitch.frequency > 20.0 && pitch.frequency < 2000.0 {
                                 if pitch.frequency < 100.0 {
                                     is_locked = true;
@@ -158,7 +159,7 @@ pub fn start_stream(
                                     is_locked = false;
                                 }
 
-                                let s_alpha = 0.3;
+                                let s_alpha = 0.7;
                                 if smoothed_freq == 0.0 {
                                     smoothed_freq = pitch.frequency;
                                 } else {
