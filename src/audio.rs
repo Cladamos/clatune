@@ -33,7 +33,7 @@ fn get_host() -> cpal::Host {
     cpal::default_host()
 }
 
-pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
+pub fn get_devices() -> Result<Vec<ClatuneDevice>, String> {
     fn get_channels(d: Device) -> String {
         let mut channels: String = String::new();
         if let Ok(config) = d.default_input_config() {
@@ -59,6 +59,7 @@ pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
                 devices.push(ClatuneDevice {
                     id: device.id().map_err(|e| e.to_string())?.to_string(),
                     name: format!("{}{}", name, get_channels(device)),
+                    is_default: false,
                 });
             }
         }
@@ -68,19 +69,17 @@ pub fn get_devices() -> Result<(Vec<ClatuneDevice>, ClatuneDevice), String> {
         return Err("No input devices found".to_string());
     }
 
-    let default_device = match host.default_input_device() {
-        Some(device) => {
-            let desc = device.description().map_err(|e| e.to_string())?;
-            ClatuneDevice {
-                id: device.id().map_err(|e| e.to_string())?.to_string(),
-                name: format!("{}{}", desc.name(), get_channels(device)),
-            }
-        }
-
-        None => devices[0].clone(),
+    let default_device_id: String = match host.default_input_device() {
+        Some(device) => device.id().map_err(|e| e.to_string())?.to_string(),
+        None => devices[0].clone().id,
     };
+    devices.iter_mut().for_each(|d| {
+        if d.id == default_device_id {
+            d.is_default = true;
+        }
+    });
 
-    Ok((devices, default_device))
+    Ok(devices)
 }
 
 pub fn start_stream(

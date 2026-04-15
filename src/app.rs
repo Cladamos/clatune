@@ -4,6 +4,7 @@ use ratatui::{DefaultTerminal, prelude::*};
 use std::{
     io,
     sync::mpsc::{self},
+    thread,
     time::{Duration, Instant},
 };
 
@@ -12,6 +13,7 @@ pub struct App {
     audio_stream: Option<cpal::Stream>,
     audio_receiver: Option<mpsc::Receiver<TunerData>>,
     error_receiver: Option<mpsc::Receiver<String>>,
+    device_receiver: Option<mpsc::Receiver<Result<Vec<ClatuneDevice>, String>>>,
 
     last_tick: Instant,
     is_reference_pitch_edit_on: bool,
@@ -34,6 +36,7 @@ impl App {
             audio_stream: None,
             audio_receiver: None,
             error_receiver: None,
+            device_receiver: None,
             last_tick: Instant::now(),
             is_reference_pitch_edit_on: false,
             reference_pitch: 440,
@@ -63,15 +66,17 @@ pub struct TunerData {
 pub struct ClatuneDevice {
     pub id: String,
     pub name: String,
+    pub is_default: bool,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> color_eyre::Result<()> {
         let tick_rate = Duration::from_millis(16); // ~60 Frames Per Second
-        self.handle_devices();
-        self.connect_audio();
+        self.request_devices();
 
         while !self.exit {
+            self.handle_device_request();
+
             if let Some(rx) = &self.audio_receiver {
                 while let Ok(tuner_data) = rx.try_recv() {
                     self.tuner_data = tuner_data;
@@ -151,7 +156,7 @@ impl App {
                     self.reset_blink();
                     self.is_reference_pitch_edit_on = false;
                 }
-                self.handle_devices();
+                self.request_devices();
                 self.list_selected_index = 0;
                 self.is_popup_open = !self.is_popup_open;
             }
@@ -176,7 +181,7 @@ impl App {
                     }
                 }
                 KeyCode::Char('r') => {
-                    self.handle_devices();
+                    self.request_devices();
                 }
                 KeyCode::Esc => self.is_popup_open = false,
                 KeyCode::Enter => {
@@ -221,15 +226,43 @@ impl App {
         }
     }
 
-    fn handle_devices(&mut self) {
-        match get_devices() {
-            Ok((devices, default_device)) => {
-                self.devices = devices;
-                if self.selected_device.id.is_empty() {
-                    self.selected_device = default_device;
+    fn request_devices(&mut self) {
+        if self.device_receiver.is_some() {
+            return;
+        }
+        let (tx, rx) = mpsc::channel::<Result<Vec<ClatuneDevice>, String>>();
+        thread::spawn(move || {
+            let _ = tx.send(get_devices());
+        });
+        self.device_receiver = Some(rx);
+    }
+
+    fn handle_device_request(&mut self) {
+        let result = match &self.device_receiver {
+            Some(rx) => rx.try_recv().ok(),
+            None => return,
+        };
+
+        if let Some(result) = result {
+            self.device_receiver = None;
+            match result {
+                Ok(d) => {
+                    if self.selected_device.id.is_empty() {
+                        if let Some(default) = d.iter().find(|device| device.is_default) {
+                            self.selected_device = default.clone();
+                        } else if let Some(first) = d.first() {
+                            self.selected_device = first.clone();
+                        }
+                        if !self.selected_device.id.is_empty() {
+                            self.devices = d;
+                            self.connect_audio();
+                            return;
+                        }
+                    }
+                    self.devices = d;
                 }
+                Err(m) => self.error_msg = m,
             }
-            Err(e) => self.error_msg = e,
         }
     }
 
